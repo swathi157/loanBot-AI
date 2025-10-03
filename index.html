@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoanBot AI - Tata Capital Personal Loans</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes typing {
+            0% { width: 0; }
+            100% { width: 100%; }
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%);
+        }
+        
+        .tata-gradient {
+            background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+        }
+        
+        .chat-bubble-user {
+            background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+        }
+        
+        .chat-bubble-ai {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border: 1px solid #cbd5e1;
+        }
+        
+        .agent-card {
+            transition: all 0.3s ease;
+        }
+        
+        .agent-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .typing-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #0066cc;
+            animation: pulse 1.4s infinite ease-in-out both;
+        }
+        
+        .typing-indicator:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator:nth-child(2) { animation-delay: -0.16s; }
+        .typing-indicator:nth-child(3) { animation-delay: 0s; }
+        
+        .loan-status-approved {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        
+        .loan-status-rejected {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        .loan-status-pending {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Mock Data
+        const mockCustomers = [
+            {
+                id: "CUST001",
+                name: "Rajesh Kumar",
+                phone: "9876543210",
+                email: "rajesh.kumar@email.com",
+                age: 32,
+                city: "Mumbai",
+                address: "Andheri West, Mumbai, Maharashtra",
+                pan: "ABCDE1234F",
+                aadhaar: "1234-5678-9012",
+                creditScore: 780,
+                preApprovedLimit: 300000,
+                salary: 75000,
+                kycStatus: "verified"
+            },
+            {
+                id: "CUST002",
+                name: "Priya Sharma",
+                phone: "9876543211",
+                email: "priya.sharma@email.com",
+                age: 28,
+                city: "Delhi",
+                address: "Connaught Place, New Delhi",
+                pan: "FGHIJ5678K",
+                aadhaar: "2345-6789-0123",
+                creditScore: 720,
+                preApprovedLimit: 250000,
+                salary: 60000,
+                kycStatus: "verified"
+            },
+            {
+                id: "CUST003",
+                name: "Amit Patel",
+                phone: "9876543212",
+                email: "amit.patel@email.com",
+                age: 35,
+                city: "Ahmedabad",
+                address: "Satellite, Ahmedabad, Gujarat",
+                pan: "KLMNO9012P",
+                aadhaar: "3456-7890-1234",
+                creditScore: 650,
+                preApprovedLimit: 200000,
+                salary: 50000,
+                kycStatus: "pending"
+            },
+            {
+                id: "CUST004",
+                name: "Sneha Reddy",
+                phone: "9876543213",
+                email: "sneha.reddy@email.com",
+                age: 30,
+                city: "Bangalore",
+                address: "Koramangala, Bangalore, Karnataka",
+                pan: "QRSTU3456V",
+                aadhaar: "4567-8901-2345",
+                creditScore: 810,
+                preApprovedLimit: 500000,
+                salary: 95000,
+                kycStatus: "verified"
+            },
+            {
+                id: "CUST005",
+                name: "Vikram Singh",
+                phone: "9876543214",
+                email: "vikram.singh@email.com",
+                age: 29,
+                city: "Pune",
+                address: "Baner, Pune, Maharashtra",
+                pan: "WXYZ7890A",
+                aadhaar: "5678-9012-3456",
+                creditScore: 690,
+                preApprovedLimit: 180000,
+                salary: 45000,
+                kycStatus: "verified"
+            }
+        ];
+
+        // Mock API Service
+        const mockApiService = {
+            async getCustomerByPhone(phone) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return mockCustomers.find(c => c.phone === phone) || null;
+            },
+
+            async getCreditScore(customerId) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                const customer = mockCustomers.find(c => c.id === customerId);
+                return customer ? customer.creditScore : Math.floor(Math.random() * 200) + 600;
+            },
+
+            async processLoanApplication(customerData, loanDetails) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                const { amount, tenure } = loanDetails;
+                const { creditScore, preApprovedLimit, salary } = customerData;
+                
+                // Calculate EMI (simplified calculation)
+                const monthlyRate = 0.12 / 12; // 12% annual rate
+                const emi = (amount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) / 
+                           (Math.pow(1 + monthlyRate, tenure) - 1);
+                
+                let status = 'approved';
+                let reason = '';
+                let interestRate = 12;
+                
+                // Underwriting logic
+                if (creditScore < 700) {
+                    status = 'rejected';
+                    reason = 'Credit score below minimum requirement (700)';
+                } else if (amount > preApprovedLimit * 2) {
+                    status = 'rejected';
+                    reason = 'Loan amount exceeds maximum eligibility';
+                } else if (amount > preApprovedLimit && amount <= preApprovedLimit * 2) {
+                    const emiToSalaryRatio = emi / salary;
+                    if (emiToSalaryRatio > 0.5) {
+                        status = 'rejected';
+                        reason = 'EMI exceeds 50% of salary';
+                    } else {
+                        status = 'approved';
+                        reason = 'Approved after salary verification';
+                        interestRate = 13; // Higher rate for higher risk
+                    }
+                }
+                
+                return {
+                    status,
+                    reason,
+                    loanAmount: amount,
+                    tenure,
+                    interestRate,
+                    emi: Math.round(emi),
+                    processingFee: Math.round(amount * 0.02),
+                    applicationId: `LOAN${Date.now()}`
+                };
+            }
+        };
+
+        // Main App Component
+        function App() {
+            const [activeTab, setActiveTab] = useState('chat');
+            const [messages, setMessages] = useState([]);
+            const [inputValue, setInputValue] = useState('');
+            const [isLoading, setIsLoading] = useState(false);
+            const [currentApplication, setCurrentApplication] = useState(null);
+            const [customerData, setCustomerData] = useState(null);
+            const [agentStatus, setAgentStatus] = useState({
+                sales: 'idle',
+                verification: 'idle',
+                underwriting: 'idle',
+                sanction: 'idle'
+            });
+            const messagesEndRef = useRef(null);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            };
+
+            useEffect(() => {
+                scrollToBottom();
+            }, [messages]);
+
+            const addMessage = (type, content, data = null) => {
+                const message = {
+                    id: Date.now() + Math.random(),
+                    type,
+                    content,
+                    timestamp: new Date(),
+                    data
+                };
+                setMessages(prev => [...prev, message]);
+                return message;
+            };
+
+            const updateAgentStatus = (agent, status) => {
+                setAgentStatus(prev => ({ ...prev, [agent]: status }));
+            };
+
+            const handleSendMessage = async (query = null) => {
+                const messageText = query || inputValue.trim();
+                if (!messageText || isLoading) return;
+
+                addMessage('user', messageText);
+                setInputValue('');
+                setIsLoading(true);
+
+                try {
+                    await processLoanQuery(messageText);
+                } catch (error) {
+                    addMessage('ai', 'I apologize, but I encountered an error processing your request. Please try again.');
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            const processLoanQuery = async (query) => {
+                // Extract loan details from query
+                const amountMatch = query.match(/₹?(\d+(?:\.\d+)?)\s*(?:lakh|lakhs?|L)?/i);
+                const tenureMatch = query.match(/(\d+)\s*(?:year|years?|yr)/i);
+                const phoneMatch = query.match(/(\d{10})/);
+
+                let loanAmount = 0;
+                let tenure = 0;
+
+                if (amountMatch) {
+                    loanAmount = parseFloat(amountMatch[1]);
+                    if (query.toLowerCase().includes('lakh')) {
+                        loanAmount *= 100000;
+                    }
+                }
+
+                if (tenureMatch) {
+                    tenure = parseInt(tenureMatch[1]) * 12; // Convert to months
+                }
+
+                // Sales Agent
+                updateAgentStatus('sales', 'working');
+                addMessage('ai', `Hello! I'm your LoanBot AI assistant from Tata Capital. I understand you're looking for a personal loan of ₹${(loanAmount/100000).toFixed(1)} lakhs for ${tenure/12} years. Let me help you with that!`);
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                if (!phoneMatch && !customerData) {
+                    updateAgentStatus('sales', 'completed');
+                    addMessage('ai', 'To proceed with your loan application, I\'ll need your registered mobile number for verification. Could you please share it?');
+                    return;
+                }
+
+                const phone = phoneMatch ? phoneMatch[1] : customerData?.phone;
+
+                // Verification Agent
+                updateAgentStatus('verification', 'working');
+                addMessage('ai', 'Let me verify your details in our system...');
+
+                const customer = await mockApiService.getCustomerByPhone(phone);
+                
+                if (!customer) {
+                    updateAgentStatus('verification', 'failed');
+                    addMessage('ai', 'I couldn\'t find your details in our system. Please visit our nearest branch or call our customer care for assistance.');
+                    return;
+                }
+
+                setCustomerData(customer);
+                updateAgentStatus('verification', 'completed');
+                
+                addMessage('ai', `Great! I found your profile, ${customer.name}. Your KYC status is ${customer.kycStatus}. Let me check your eligibility...`, {
+                    type: 'customer_info',
+                    customer
+                });
+
+                // Underwriting Agent
+                updateAgentStatus('underwriting', 'working');
+                addMessage('ai', 'Checking your credit profile and calculating loan eligibility...');
+
+                const creditScore = await mockApiService.getCreditScore(customer.id);
+                const loanResult = await mockApiService.processLoanApplication(customer, {
+                    amount: loanAmount,
+                    tenure: tenure
+                });
+
+                updateAgentStatus('underwriting', 'completed');
+                setCurrentApplication(loanResult);
+
+                if (loanResult.status === 'approved') {
+                    updateAgentStatus('sanction', 'working');
+                    addMessage('ai', `🎉 Congratulations ${customer.name}! Your loan has been approved!`, {
+                        type: 'loan_approval',
+                        result: loanResult,
+                        customer
+                    });
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    updateAgentStatus('sanction', 'completed');
+                    addMessage('ai', 'Your sanction letter is ready for download. The loan amount will be disbursed to your registered bank account within 24 hours after document verification.');
+                } else {
+                    updateAgentStatus('underwriting', 'failed');
+                    addMessage('ai', `I'm sorry, but your loan application couldn't be approved at this time. Reason: ${loanResult.reason}`, {
+                        type: 'loan_rejection',
+                        result: loanResult,
+                        customer
+                    });
+                    
+                    // Suggest alternatives
+                    if (loanResult.reason.includes('amount exceeds')) {
+                        const maxAmount = customer.preApprovedLimit;
+                        addMessage('ai', `However, you're pre-approved for up to ₹${(maxAmount/100000).toFixed(1)} lakhs. Would you like to apply for this amount instead?`);
+                    }
+                }
+            };
+
+            const generateSanctionLetter = () => {
+                if (!currentApplication || !customerData) return;
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                // Header
+                doc.setFontSize(20);
+                doc.setTextColor(0, 102, 204);
+                doc.text('TATA CAPITAL', 20, 20);
+                doc.setFontSize(16);
+                doc.text('Personal Loan Sanction Letter', 20, 35);
+
+                // Application details
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                doc.text(`Application ID: ${currentApplication.applicationId}`, 20, 55);
+                doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 65);
+
+                // Customer details
+                doc.setFontSize(14);
+                doc.text('Customer Details:', 20, 85);
+                doc.setFontSize(12);
+                doc.text(`Name: ${customerData.name}`, 20, 100);
+                doc.text(`Phone: ${customerData.phone}`, 20, 110);
+                doc.text(`Address: ${customerData.address}`, 20, 120);
+
+                // Loan details
+                doc.setFontSize(14);
+                doc.text('Loan Details:', 20, 140);
+                doc.setFontSize(12);
+                doc.text(`Loan Amount: ₹${currentApplication.loanAmount.toLocaleString()}`, 20, 155);
+                doc.text(`Tenure: ${currentApplication.tenure} months`, 20, 165);
+                doc.text(`Interest Rate: ${currentApplication.interestRate}% per annum`, 20, 175);
+                doc.text(`EMI: ₹${currentApplication.emi.toLocaleString()}`, 20, 185);
+                doc.text(`Processing Fee: ₹${currentApplication.processingFee.toLocaleString()}`, 20, 195);
+
+                // Terms and conditions
+                doc.setFontSize(10);
+                doc.text('Terms & Conditions:', 20, 220);
+                doc.text('1. This sanction is valid for 30 days from the date of issue.', 20, 230);
+                doc.text('2. Loan disbursal is subject to document verification.', 20, 240);
+                doc.text('3. Processing fee is non-refundable.', 20, 250);
+
+                // Footer
+                doc.text('Thank you for choosing Tata Capital!', 20, 270);
+
+                doc.save(`Tata_Capital_Sanction_Letter_${currentApplication.applicationId}.pdf`);
+            };
+
+            const sampleQueries = [
+                "I want a personal loan of ₹5 lakhs for 3 years. My number is 9876543210",
+                "Need ₹3 lakh loan for 2 years - phone 9876543211",
+                "Can I get ₹7 lakhs for 5 years? Contact: 9876543212",
+                "Personal loan ₹2.5 lakhs, 18 months - 9876543213"
+            ];
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    {/* Header */}
+                    <header className="tata-gradient text-white shadow-lg">
+                        <div className="max-w-7xl mx-auto px-4 py-6">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                                        <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h1 className="text-2xl font-bold">LoanBot AI</h1>
+                                        <p className="text-blue-100">Tata Capital Personal Loans</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <span className="text-sm text-blue-100">AI-Powered Loan Processing</span>
+                                    <div className="w-2 h-2 bg-green-400 rounded-full pulse-animation"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Navigation Tabs */}
+                    <nav className="bg-white shadow-sm border-b">
+                        <div className="max-w-7xl mx-auto px-4">
+                            <div className="flex space-x-8">
+                                {[
+                                    { id: 'chat', label: 'Loan Chat', icon: '💬' },
+                                    { id: 'verification', label: 'Verification', icon: '✅' },
+                                    { id: 'underwriting', label: 'Underwriting', icon: '📊' },
+                                    { id: 'sanction', label: 'Sanction', icon: '📄' }
+                                ].map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`py-4 px-2 border-b-2 font-medium text-sm ${
+                                            activeTab === tab.id
+                                                ? 'border-blue-500 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        <span className="mr-2">{tab.icon}</span>
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </nav>
+
+                    {/* Main Content */}
+                    <main className="max-w-7xl mx-auto px-4 py-8">
+                        {activeTab === 'chat' && (
+                            <ChatInterface 
+                                messages={messages}
+                                inputValue={inputValue}
+                                setInputValue={setInputValue}
+                                handleSendMessage={handleSendMessage}
+                                isLoading={isLoading}
+                                sampleQueries={sampleQueries}
+                                currentApplication={currentApplication}
+                                generateSanctionLetter={generateSanctionLetter}
+                                messagesEndRef={messagesEndRef}
+                                agentStatus={agentStatus}
+                            />
+                        )}
+                        
+                        {activeTab === 'verification' && (
+                            <VerificationPanel customerData={customerData} />
+                        )}
+                        
+                        {activeTab === 'underwriting' && (
+                            <UnderwritingPanel 
+                                customerData={customerData} 
+                                currentApplication={currentApplication} 
+                            />
+                        )}
+                        
+                        {activeTab === 'sanction' && (
+                            <SanctionPanel 
+                                customerData={customerData}
+                                currentApplication={currentApplication}
+                                generateSanctionLetter={generateSanctionLetter}
+                            />
+                        )}
+                    </main>
+                </div>
+            );
+        }
+
+        // Chat Interface Component
+        function ChatInterface({ messages, inputValue, setInputValue, handleSendMessage, isLoading, sampleQueries, currentApplication, generateSanctionLetter, messagesEndRef, agentStatus }) {
+            return (
+                <div className="grid lg:grid-cols-3 gap-8">
+                    {/* Chat Panel */}
+                    <div className="lg:col-span-2">
+                        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                            {/* Chat Header */}
+                            <div className="tata-gradient text-white p-4">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                        <span className="text-sm font-bold">🤖</span>
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold">LoanBot AI Assistant</h3>
+                                        <div className="flex items-center space-x-2 text-sm text-blue-100">
+                                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                            <span>Ready to help with your loan</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Messages */}
+                            <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                                {messages.length === 0 && (
+                                    <div className="text-center py-8">
+                                        <div className="text-4xl mb-4">💳</div>
+                                        <h3 className="text-lg font-semibold text-gray-700 mb-2">Welcome to Tata Capital LoanBot</h3>
+                                        <p className="text-gray-500">I'm here to help you get a personal loan quickly and easily. Just tell me your loan requirement!</p>
+                                    </div>
+                                )}
+                                
+                                {messages.map(message => (
+                                    <MessageBubble key={message.id} message={message} />
+                                ))}
+                                
+                                {isLoading && <LoadingIndicator />}
+                                <div ref={messagesEndRef} />
+                            </div>
+
+                            {/* Input */}
+                            <div className="p-4 bg-white border-t">
+                                <div className="flex space-x-2">
+                                    <input
+                                        type="text"
+                                        value={inputValue}
+                                        onChange={(e) => setInputValue(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                                        placeholder="Type your loan requirement (e.g., I need ₹5 lakhs for 3 years, phone: 9876543210)"
+                                        className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        disabled={isLoading}
+                                    />
+                                    <button
+                                        onClick={() => handleSendMessage()}
+                                        disabled={isLoading || !inputValue.trim()}
+                                        className="tata-gradient text-white px-6 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                                    >
+                                        Send
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Side Panel */}
+                    <div className="space-y-6">
+                        {/* Sample Queries */}
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Quick Start</h3>
+                            <div className="space-y-2">
+                                {sampleQueries.map((query, index) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => handleSendMessage(query)}
+                                        className="w-full text-left p-3 text-sm bg-gray-50 hover:bg-blue-50 rounded-lg transition-colors"
+                                        disabled={isLoading}
+                                    >
+                                        {query}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Agent Status */}
+                        <AgentStatusPanel agentStatus={agentStatus} />
+
+                        {/* Download Sanction Letter */}
+                        {currentApplication && currentApplication.status === 'approved' && (
+                            <div className="bg-white rounded-xl shadow-lg p-6">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Download Documents</h3>
+                                <button
+                                    onClick={generateSanctionLetter}
+                                    className="w-full loan-status-approved text-white py-3 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center space-x-2"
+                                >
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
+                                    </svg>
+                                    <span>Download Sanction Letter</span>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Loan Calculator */}
+                        <LoanCalculator />
+                    </div>
+                </div>
+            );
+        }
+
+        // Message Bubble Component
+        function MessageBubble({ message }) {
+            return (
+                <div className={`flex items-start space-x-3 slide-in ${message.type === 'user' ? 'justify-end' : ''}`}>
+                    {message.type === 'ai' && (
+                        <div className="w-8 h-8 tata-gradient rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-xs font-bold">🤖</span>
+                        </div>
+                    )}
+                    
+                    <div className={`p-3 rounded-lg max-w-md ${
+                        message.type === 'user' 
+                            ? 'chat-bubble-user text-white' 
+                            : 'chat-bubble-ai text-gray-800'
+                    }`}>
+                        <p>{message.content}</p>
+                        
+                        {message.data && message.data.type === 'customer_info' && (
+                            <CustomerInfoCard customer={message.data.customer} />
+                        )}
+                        
+                        {message.data && message.data.type === 'loan_approval' && (
+                            <LoanApprovalCard result={message.data.result} customer={message.data.customer} />
+                        )}
+                        
+                        {message.data && message.data.type === 'loan_rejection' && (
+                            <LoanRejectionCard result={message.data.result} />
+                        )}
+                    </div>
+                    
+                    {message.type === 'user' && (
+                        <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-xs font-bold">👤</span>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Customer Info Card Component
+        function CustomerInfoCard({ customer }) {
+            return (
+                <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold text-blue-800 mb-2">Customer Profile</h4>
+                    <div className="text-sm space-y-1">
+                        <p><span className="font-medium">Name:</span> {customer.name}</p>
+                        <p><span className="font-medium">City:</span> {customer.city}</p>
+                        <p><span className="font-medium">Pre-approved Limit:</span> ₹{(customer.preApprovedLimit/100000).toFixed(1)}L</p>
+                        <p><span className="font-medium">KYC Status:</span> 
+                            <span className={`ml-1 px-2 py-1 rounded text-xs ${
+                                customer.kycStatus === 'verified' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                                {customer.kycStatus}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        // Loan Approval Card Component
+        function LoanApprovalCard({ result, customer }) {
+            return (
+                <div className="mt-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center space-x-2 mb-3">
+                        <span className="text-2xl">🎉</span>
+                        <h4 className="font-semibold text-green-800">Loan Approved!</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <p className="font-medium text-gray-600">Loan Amount</p>
+                            <p className="text-lg font-bold text-green-700">₹{result.loanAmount.toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <p className="font-medium text-gray-600">Monthly EMI</p>
+                            <p className="text-lg font-bold text-green-700">₹{result.emi.toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <p className="font-medium text-gray-600">Interest Rate</p>
+                            <p className="text-green-700">{result.interestRate}% p.a.</p>
+                        </div>
+                        <div>
+                            <p className="font-medium text-gray-600">Tenure</p>
+                            <p className="text-green-700">{result.tenure} months</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Loan Rejection Card Component
+        function LoanRejectionCard({ result }) {
+            return (
+                <div className="mt-3 p-4 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                        <span className="text-2xl">❌</span>
+                        <h4 className="font-semibold text-red-800">Application Not Approved</h4>
+                    </div>
+                    <p className="text-sm text-red-700">{result.reason}</p>
+                </div>
+            );
+        }
+
+        // Loading Indicator Component
+        function LoadingIndicator() {
+            return (
+                <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 tata-gradient rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-xs font-bold">🤖</span>
+                    </div>
+                    <div className="chat-bubble-ai text-gray-800 p-3 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                            <span className="text-sm">Processing your request</span>
+                            <div className="flex space-x-1">
+                                <div className="typing-indicator"></div>
+                                <div className="typing-indicator"></div>
+                                <div className="typing-indicator"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Agent Status Panel Component
+        function AgentStatusPanel({ agentStatus }) {
+            const agents = [
+                { key: 'sales', name: 'Sales Agent', icon: '💼' },
+                { key: 'verification', name: 'Verification Agent', icon: '✅' },
+                { key: 'underwriting', name: 'Underwriting Agent', icon: '📊' },
+                { key: 'sanction', name: 'Sanction Agent', icon: '📄' }
+            ];
+
+            const getStatusColor = (status) => {
+                switch (status) {
+                    case 'working': return 'yellow';
+                    case 'completed': return 'green';
+                    case 'failed': return 'red';
+                    default: return 'gray';
+                }
+            };
+
+            return (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Agent Status</h3>
+                    <div className="space-y-3">
+                        {agents.map(agent => (
+                            <div key={agent.key} className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                    <span className="text-lg">{agent.icon}</span>
+                                    <span className="text-sm text-gray-600">{agent.name}</span>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <div className={`w-2 h-2 bg-${getStatusColor(agentStatus[agent.key])}-500 rounded-full ${
+                                        agentStatus[agent.key] === 'working' ? 'pulse-animation' : ''
+                                    }`}></div>
+                                    <span className="text-xs text-gray-500 capitalize">{agentStatus[agent.key]}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        // Loan Calculator Component
+        function LoanCalculator() {
+            const [amount, setAmount] = useState(500000);
+            const [tenure, setTenure] = useState(36);
+            const [rate] = useState(12);
+
+            const calculateEMI = () => {
+                const monthlyRate = rate / 12 / 100;
+                const emi = (amount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) / 
+                           (Math.pow(1 + monthlyRate, tenure) - 1);
+                return Math.round(emi);
+            };
+
+            return (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">EMI Calculator</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Loan Amount: ₹{amount.toLocaleString()}
+                            </label>
+                            <input
+                                type="range"
+                                min="100000"
+                                max="2000000"
+                                step="50000"
+                                value={amount}
+                                onChange={(e) => setAmount(parseInt(e.target.value))}
+                                className="w-full"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Tenure: {tenure} months
+                            </label>
+                            <input
+                                type="range"
+                                min="12"
+                                max="84"
+                                step="6"
+                                value={tenure}
+                                onChange={(e) => setTenure(parseInt(e.target.value))}
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                            <p className="text-sm text-gray-600">Monthly EMI</p>
+                            <p className="text-2xl font-bold text-blue-600">₹{calculateEMI().toLocaleString()}</p>
+                            <p className="text-xs text-gray-500">@ {rate}% interest rate</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Verification Panel Component
+        function VerificationPanel({ customerData }) {
+            if (!customerData) {
+                return (
+                    <div className="text-center py-12">
+                        <div className="text-gray-400 text-6xl mb-4">✅</div>
+                        <h3 className="text-xl font-semibold text-gray-600 mb-2">No Customer Data</h3>
+                        <p className="text-gray-500">Start a loan application in the chat to see verification details.</p>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="space-y-6">
+                    <div className="bg-white rounded-xl shadow-lg p-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Customer Verification Status</h3>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 className="font-medium text-gray-700 mb-3">Personal Information</h4>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Name:</span>
+                                        <span className="font-medium">{customerData.name}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Age:</span>
+                                        <span className="font-medium">{customerData.age} years</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">City:</span>
+                                        <span className="font-medium">{customerData.city}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Phone:</span>
+                                        <span className="font-medium">{customerData.phone}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="font-medium text-gray-700 mb-3">KYC Documents</h4>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-600">PAN Card:</span>
+                                        <span className="flex items-center space-x-1">
+                                            <span className="font-medium">{customerData.pan}</span>
+                                            <span className="text-green-500">✓</span>
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-600">Aadhaar:</span>
+                                        <span className="flex items-center space-x-1">
+                                            <span className="font-medium">{customerData.aadhaar}</span>
+                                            <span className="text-green-500">✓</span>
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-600">Address:</span>
+                                        <span className="text-green-500">✓ Verified</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Underwriting Panel Component
+        function UnderwritingPanel({ customerData, currentApplication }) {
+            if (!customerData) {
+                return (
+                    <div className="text-center py-12">
+                        <div className="text-gray-400 text-6xl mb-4">📊</div>
+                        <h3 className="text-xl font-semibold text-gray-600 mb-2">No Application Data</h3>
+                        <p className="text-gray-500">Complete a loan application to see underwriting analysis.</p>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="space-y-6">
+                    {/* Credit Profile */}
+                    <div className="bg-white rounded-xl shadow-lg p-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Credit Profile Analysis</h3>
+                        <div className="grid md:grid-cols-3 gap-6">
+                            <div className="text-center">
+                                <div className="text-3xl font-bold text-blue-600">{customerData.creditScore}</div>
+                                <div className="text-sm text-gray-600">Credit Score</div>
+                                <div className={`text-xs mt-1 px-2 py-1 rounded ${
+                                    customerData.creditScore >= 750 ? 'bg-green-100 text-green-800' :
+                                    customerData.creditScore >= 700 ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-red-100 text-red-800'
+                                }`}>
+                                    {customerData.creditScore >= 750 ? 'Excellent' :
+                                     customerData.creditScore >= 700 ? 'Good' : 'Fair'}
+                                </div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-3xl font-bold text-green-600">₹{(customerData.preApprovedLimit/100000).toFixed(1)}L</div>
+                                <div className="text-sm text-gray-600">Pre-approved Limit</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-3xl font-bold text-purple-600">₹{(customerData.salary/1000).toFixed(0)}K</div>
+                                <div className="text-sm text-gray-600">Monthly Salary</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Application Details */}
+                    {currentApplication && (
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Application Assessment</h3>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <div>
+                                    <h4 className="font-medium text-gray-700 mb-3">Loan Details</h4>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Requested Amount:</span>
+                                            <span className="font-medium">₹{currentApplication.loanAmount.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Tenure:</span>
+                                            <span className="font-medium">{currentApplication.tenure} months</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Interest Rate:</span>
+                                            <span className="font-medium">{currentApplication.interestRate}% p.a.</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Monthly EMI:</span>
+                                            <span className="font-medium">₹{currentApplication.emi.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 className="font-medium text-gray-700 mb-3">Risk Assessment</h4>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">EMI to Salary Ratio:</span>
+                                            <span className="font-medium">{((currentApplication.emi / customerData.salary) * 100).toFixed(1)}%</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Loan to Limit Ratio:</span>
+                                            <span className="font-medium">{((currentApplication.loanAmount / customerData.preApprovedLimit) * 100).toFixed(1)}%</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Application Status:</span>
+                                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                currentApplication.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                                'bg-red-100 text-red-800'
+                                            }`}>
+                                                {currentApplication.status.toUpperCase()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Sanction Panel Component
+        function SanctionPanel({ customerData, currentApplication, generateSanctionLetter }) {
+            if (!currentApplication) {
+                return (
+                    <div className="text-center py-12">
+                        <div className="text-gray-400 text-6xl mb-4">📄</div>
+                        <h3 className="text-xl font-semibold text-gray-600 mb-2">No Sanction Available</h3>
+                        <p className="text-gray-500">Complete a successful loan application to generate sanction letter.</p>
+                    </div>
+                );
+            }
+
+            if (currentApplication.status !== 'approved') {
+                return (
+                    <div className="text-center py-12">
+                        <div className="text-red-400 text-6xl mb-4">❌</div>
+                        <h3 className="text-xl font-semibold text-gray-600 mb-2">Application Not Approved</h3>
+                        <p className="text-gray-500">{currentApplication.reason}</p>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="space-y-6">
+                    <div className="bg-white rounded-xl shadow-lg p-6">
+                        <div className="text-center mb-6">
+                            <div className="text-green-500 text-6xl mb-4">🎉</div>
+                            <h3 className="text-2xl font-bold text-gray-800 mb-2">Loan Approved!</h3>
+                            <p className="text-gray-600">Your sanction letter is ready for download</p>
+                        </div>
+
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+                            <h4 className="font-semibold text-green-800 mb-4">Sanction Details</h4>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <p className="text-sm text-gray-600">Application ID</p>
+                                    <p className="font-medium">{currentApplication.applicationId}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-600">Customer Name</p>
+                                    <p className="font-medium">{customerData.name}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-600">Sanctioned Amount</p>
+                                    <p className="font-medium text-lg">₹{currentApplication.loanAmount.toLocaleString()}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-600">Monthly EMI</p>
+                                    <p className="font-medium text-lg">₹{currentApplication.emi.toLocaleString()}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-600">Interest Rate</p>
+                                    <p className="font-medium">{currentApplication.interestRate}% per annum</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-600">Loan Tenure</p>
+                                    <p className="font-medium">{currentApplication.tenure} months</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="text-center">
+                            <button
+                                onClick={generateSanctionLetter}
+                                className="loan-status-approved text-white py-3 px-8 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center space-x-2 mx-auto"
+                            >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
+                                </svg>
+                                <span>Download Sanction Letter</span>
+                            </button>
+                            <p className="text-sm text-gray-500 mt-2">
+                                The loan will be disbursed within 24 hours after document verification
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Render the app
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9863747aa73941a4',t:'MTc1OTA2NDc1NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
